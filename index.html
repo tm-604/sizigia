@@ -1651,6 +1651,15 @@ document.querySelectorAll('.sheet').forEach(sheet=>{
   let startY=0, dy=0, dragging=false, tracking=false;
   const DRAG_THRESHOLD=8;
   sheet.addEventListener('pointerdown',(e)=>{
+    // #mapViewport runs its own pinch-zoom/pan gesture (see the map IIFE
+    // below) and has no scrollTop to gate on the way normal sheet content
+    // does (it's a pan/zoom canvas, not a scrollable list — scrollTop is
+    // always 0), so without this the check below never disqualifies it and
+    // any small downward pan on the map got misread as swipe-to-dismiss.
+    // Back off entirely for touches starting inside the map viewport;
+    // dismissing the map sheet still works via the grab handle, tabs,
+    // legend or hint text around it.
+    if(e.target.closest('#mapViewport')){ tracking=false; return; }
     tracking = sheet.scrollTop<=0;
     dragging=false; startY=e.clientY; dy=0;
   });
