@@ -578,7 +578,20 @@ mark.search-hl{
 .qr-wrap canvas,.qr-wrap img,.qr-wrap table{border-radius:10px; border:6px solid #fff;}
 #compareSheet{top:5vh; bottom:0; max-height:none; border-radius:20px 20px 0 0; padding:0 0 calc(env(safe-area-inset-bottom)+20px) 0; display:flex; flex-direction:column;}
 .compare-qr-section{padding:16px 16px 0; text-align:center;}
-.compare-qr-hint{font-size:13px; color:var(--ink-dim); margin-bottom:8px; line-height:1.4;}
+.compare-share-code-btn{display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-top:10px; padding:11px; border-radius:10px; border:1px solid var(--line); background:var(--night-2); color:var(--ink-dim); font-size:14px; font-family:'Space Grotesk',sans-serif; cursor:pointer;}
+.compare-share-code-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0;}
+.compare-share-code-btn:active{border-color:var(--lumina);color:var(--lumina);}
+.compare-copy-msg{font-size:12px; color:var(--lumina); text-align:center; min-height:16px; margin-top:6px;}
+.compare-scan-row{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
+.compare-scan-btn{display:flex; align-items:center; gap:7px; flex:1; padding:11px 12px; border-radius:10px; border:1px solid var(--lumina); background:rgba(57,224,255,0.07); color:var(--lumina); font-size:14px; font-family:'Space Grotesk',sans-serif; cursor:pointer;}
+.compare-scan-btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0;}
+.compare-scan-btn:active{background:rgba(57,224,255,0.15);}
+.compare-add-btn-inline{white-space:nowrap; background:none; border:1px dashed var(--line); border-radius:10px; padding:11px 12px; font-size:13px; color:var(--ink-dim); cursor:pointer; font-family:'IBM Plex Mono',monospace;}
+.compare-add-btn-inline:active{border-color:var(--lumina);color:var(--lumina);}
+.compare-scan-msg{font-size:12px; color:var(--lumina); min-height:16px; margin-bottom:6px;}
+.compare-camera-wrap{position:relative; border-radius:14px; overflow:hidden; background:#000; margin-bottom:10px;}
+.compare-camera-wrap video{width:100%; display:block; max-height:260px; object-fit:cover;}
+.compare-camera-close{position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.6); color:#fff; border:1px solid rgba(255,255,255,0.3); border-radius:20px; padding:8px 20px; font-size:14px; cursor:pointer;}
 .compare-your-label{font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-dim); margin:10px 0 4px;}
 .compare-your-code{font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink); background:var(--night-2); border:1px solid var(--line); border-radius:8px; padding:8px 12px; word-break:break-all; text-align:left;}
 .compare-divider{height:1px; background:var(--line); margin:16px 0;}
@@ -731,16 +744,32 @@ mark.search-hl{
     </div>
     <div class="settings-body">
       <div class="compare-qr-section">
-        <div class="compare-qr-hint">Let a friend scan your QR to load your code automatically</div>
-        <div class="qr-wrap" id="compareQrWrap"><div id="compareQr"></div></div>
-        <div class="compare-your-label">Your code</div>
-        <div class="compare-your-code" id="compareYourCode"></div>
+        <div class="compare-your-label">Your code — let a friend scan this</div>
+        <div class="qr-wrap"><div id="compareQr"></div></div>
+        <button class="compare-share-code-btn" id="compareShareCodeBtn">
+          <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy my code instead
+        </button>
+        <div class="compare-copy-msg" id="compareCopyMsg"></div>
       </div>
       <div class="compare-divider"></div>
       <div class="compare-slots-section">
-        <div class="compare-slots-label">Paste your friends' codes</div>
+        <div class="compare-slots-label">Friends' codes</div>
         <div id="compareSlots"></div>
-        <button class="compare-add-btn" id="compareAddBtn">+ Add another friend</button>
+        <div class="compare-scan-row">
+          <button class="compare-scan-btn" id="compareScanBtn">
+            <svg viewBox="0 0 24 24"><path d="M3 9V6a2 2 0 012-2h2M3 15v3a2 2 0 002 2h2M15 3h3a2 2 0 012 2v2M15 21h3a2 2 0 002-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+            Scan a friend's QR
+          </button>
+          <button class="compare-add-btn-inline" id="compareAddBtn">+ Add manually</button>
+        </div>
+        <div class="compare-scan-msg" id="compareScanMsg"></div>
+        <!-- camera viewer -->
+        <div class="compare-camera-wrap" id="compareCameraWrap" style="display:none;">
+          <video id="compareCameraVideo" autoplay playsinline muted></video>
+          <canvas id="compareCameraCanvas" style="display:none;"></canvas>
+          <button class="compare-camera-close" id="compareCameraClose">✕ Cancel</button>
+        </div>
       </div>
       <button class="fav-backup-btn compare-confirm-btn" id="compareBtn">Compare</button>
       <div class="compare-results" id="compareResults"></div>
@@ -1939,18 +1968,14 @@ function decodeFavCode(code){
   return result;
 }
 
-function renderCompareQr(){
-  const wrap=document.getElementById('compareQr');
-  wrap.innerHTML='';
-  if(!favorites.size) return;
-  const url=window.location.origin+window.location.pathname+'?restore='+encodeURIComponent(favCode());
-  try{
-    const qr=qrcode(0,'M');
-    qr.addData(url,'Byte');
-    qr.make();
-    wrap.innerHTML=qr.createSvgTag({scalable:true});
-    wrap.querySelector('svg').style.cssText='width:160px;height:160px;border-radius:10px;border:6px solid #fff;display:block;';
-  }catch(e){}
+function shareCompareCode(){
+  if(!favorites.size){ return; }
+  const code=favCode();
+  const msg=document.getElementById('compareCopyMsg');
+  const done=()=>{ msg.textContent='Code copied — paste it in the compare screen.'; setTimeout(()=>{ msg.textContent=''; },3500); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(done).catch(()=>fallbackCopy(code,done));
+  } else fallbackCopy(code,done);
 }
 
 function addCompareSlot(value=''){
@@ -1969,15 +1994,27 @@ function addCompareSlot(value=''){
   inp.focus();
 }
 
+function renderCompareQr(){
+  const wrap=document.getElementById('compareQr');
+  wrap.innerHTML='';
+  if(!favorites.size) return;
+  try{
+    const qr=qrcode(0,'M');
+    qr.addData(favCode(),'Byte'); // plain text — camera shows copy option, no browser
+    qr.make();
+    wrap.innerHTML=qr.createSvgTag({scalable:true});
+    wrap.querySelector('svg').style.cssText='width:160px;height:160px;border-radius:10px;border:6px solid #fff;display:block;';
+  }catch(e){}
+}
 function openCompareSheet(){
-  // reset
   document.getElementById('compareSlots').innerHTML='';
   document.getElementById('compareResults').innerHTML='';
-  document.getElementById('compareYourCode').textContent=favorites.size?favCode():'(no favorites yet)';
+  document.getElementById('compareCopyMsg').textContent='';
   renderCompareQr();
   addCompareSlot();
   showOverlay('compareOverlay');
 }
+document.getElementById('compareShareCodeBtn').onclick=shareCompareCode;
 
 function runCompare(){
   const inputs=Array.from(document.querySelectorAll('#compareSlots .compare-slot input'));
@@ -2022,6 +2059,74 @@ function runCompare(){
 document.getElementById('compareFavBtn').onclick=openCompareSheet;
 document.getElementById('compareAddBtn').onclick=()=>addCompareSlot();
 document.getElementById('compareBtn').onclick=runCompare;
+
+/* ---------- in-app QR scanner ---------- */
+let _scanStream=null, _scanRaf=null;
+
+function stopScanner(){
+  if(_scanRaf){ cancelAnimationFrame(_scanRaf); _scanRaf=null; }
+  if(_scanStream){ _scanStream.getTracks().forEach(t=>t.stop()); _scanStream=null; }
+  document.getElementById('compareCameraWrap').style.display='none';
+}
+
+async function startScanner(){
+  const msg=document.getElementById('compareScanMsg');
+  if(!('BarcodeDetector' in window)){
+    msg.textContent='QR scanning not supported on this browser — paste the code manually.';
+    setTimeout(()=>{ msg.textContent=''; },4000);
+    return;
+  }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    _scanStream=stream;
+    const video=document.getElementById('compareCameraVideo');
+    const canvas=document.getElementById('compareCameraCanvas');
+    const wrap=document.getElementById('compareCameraWrap');
+    video.srcObject=stream;
+    wrap.style.display='block';
+    await video.play();
+    const detector=new BarcodeDetector({formats:['qr_code']});
+    const ctx=canvas.getContext('2d');
+    let lastScan=0;
+    function tick(){
+      _scanRaf=requestAnimationFrame(tick);
+      const now=Date.now();
+      if(now-lastScan<300) return; // scan every 300ms
+      lastScan=now;
+      if(video.readyState<2) return;
+      canvas.width=video.videoWidth;
+      canvas.height=video.videoHeight;
+      ctx.drawImage(video,0,0);
+      detector.detect(canvas).then(codes=>{
+        if(!codes.length) return;
+        const raw=codes[0].rawValue.trim().split('|')[0];
+        stopScanner();
+        // find first empty slot or add a new one
+        const inputs=document.querySelectorAll('#compareSlots .compare-slot input');
+        let target=null;
+        inputs.forEach(inp=>{ if(!target && !inp.value.trim()) target=inp; });
+        if(!target){ addCompareSlot(); target=document.querySelector('#compareSlots .compare-slot:last-child input'); }
+        target.value=raw;
+        msg.textContent='Code scanned — tap Compare!';
+        setTimeout(()=>{ msg.textContent=''; },4000);
+      }).catch(()=>{});
+    }
+    tick();
+  }catch(err){
+    const msg=document.getElementById('compareScanMsg');
+    msg.textContent='Camera access denied — paste the code manually.';
+    setTimeout(()=>{ msg.textContent=''; },4000);
+    stopScanner();
+  }
+}
+
+document.getElementById('compareScanBtn').onclick=startScanner;
+document.getElementById('compareCameraClose').onclick=stopScanner;
+
+// stop camera when overlay closes
+document.getElementById('compareOverlay').addEventListener('click',(e)=>{
+  if(e.target===document.getElementById('compareOverlay') || e.target.hasAttribute('data-close')) stopScanner();
+});
 
 document.querySelectorAll('.overlay').forEach(ov=>{
   ov.addEventListener('click',(e)=>{ if(e.target===ov || e.target.hasAttribute('data-close')) hideOverlay(ov); });
