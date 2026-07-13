@@ -1,9 +1,11 @@
-// Bump this whenever index.html (or the lineup data inside it) changes,
+﻿// Bump this whenever index.html (or the lineup data inside it) changes,
 // so returning visitors pick up the new version instead of a stale cache.
-const CACHE_NAME = 'sizigia-cache-v75';
+const CACHE_NAME = 'sizigia-cache-v88';
 const ASSETS = [
   './',
   './index.html',
+  './jsqr.js',
+  './qrcode.js',
   './assets.js',
   './manifest.json',
   './icon-192.png',
