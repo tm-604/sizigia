@@ -199,9 +199,9 @@ body{
   background:rgba(255,180,0,0.08);
   font-size:13px; line-height:1.5; color:var(--ink);
 }
-#conflictWarn strong{color:#F5A623; font-weight:600;}
+#conflictWarn strong{color:var(--heart); font-weight:600;}
 #conflictWarn .conflict-act-link{
-  color:#F5A623; font-weight:600; text-decoration:underline;
+  font-weight:600; text-decoration:underline;
   text-underline-offset:2px; cursor:pointer; background:none; border:none;
   padding:0; font-size:inherit; font-family:inherit;
 }
@@ -452,14 +452,6 @@ body.cols-1 .slot .sub{font-size:12px;}
   font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.08em;
   text-transform:uppercase; padding:6px 11px; border-radius:999px;
 }
-.share-btn{
-  display:flex; align-items:center; justify-content:center;
-  width:32px; height:32px; border-radius:50%;
-  border:1px solid var(--line); background:var(--night-2);
-  color:var(--ink-dim); cursor:pointer; flex-shrink:0;
-}
-.share-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;}
-.share-btn:active{border-color:var(--lumina);color:var(--lumina);}
 .artist-stage-badge .dot{width:7px;height:7px;border-radius:50%;box-shadow:0 0 8px currentColor;}
 .badge-ombra{color:var(--ombra); background:rgba(177,92,255,0.12);}
 .badge-origin{color:var(--origin); background:rgba(255,150,64,0.12);}
@@ -1015,9 +1007,9 @@ function showConflictWarn(stage,e){
   if(!hits.length){ box.style.display='none'; return; }
   const lines=hits.map(({s,act},i)=>{
     const idx=DATA[s].indexOf(act);
-    return `<strong>Warning:</strong> this act overlaps with <button class="conflict-act-link" data-cstage="${s}" data-cidx="${idx}">${act.act}</button> (${fmt(act.start)}–${fmt(act.end)}, ${s} Stage)`;
+    return `<button class="conflict-act-link" style="color:var(--${STAGE_KEY[s]})" data-cstage="${s}" data-cidx="${idx}">${act.act}</button> (${fmt(act.start)}–${fmt(act.end)}, ${s} Stage)`;
   }).join('<br>');
-  box.innerHTML=lines+`<button class="conflict-ok">OK</button>`;
+  box.innerHTML=`<strong>Warning:</strong> this act overlaps with one or more of your favorites:<br>`+lines+`<button class="conflict-ok">OK</button>`;
   box.style.display='block';
   box.querySelector('.conflict-ok').onclick=()=>{ box.style.display='none'; };
   box.querySelectorAll('.conflict-act-link').forEach(btn=>{
@@ -1475,9 +1467,6 @@ function openArtist(stage,e){
     ${photoHtml}
     <div class="artist-stage-row">
       <span class="artist-stage-badge badge-${cls}"><span class="dot" style="background:currentColor"></span>${stage}</span>
-      <button class="share-btn" id="shareBtn" aria-label="Share">
-        <svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-      </button>
     </div>
     <div class="artist-name-row">
       <h2 class="artist-name">${e.act}</h2>
@@ -1501,14 +1490,6 @@ function openArtist(stage,e){
     favReminderDirty=true;
   };
   showConflictWarn(stage,e);
-  document.getElementById('shareBtn').onclick=()=>{
-    const text=`${e.act} @ Sizigia — ${stage} Stage\n${fmt(e.start)}–${fmt(e.end)}`;
-    if(navigator.share){
-      navigator.share({title:e.act, text}).catch(()=>{});
-    } else {
-      window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener');
-    }
-  };
   document.getElementById('bellBtn').onclick=()=>openReminderPopup(stage,e);
   document.getElementById('artistWhenBtn').onclick=()=>jumpToTimetable(stage, idx);
   document.getElementById('artistSheet').scrollTop=0;
