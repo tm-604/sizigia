@@ -597,9 +597,11 @@ mark.search-hl{
 .compare-divider{height:1px; background:var(--line); margin:16px 0;}
 .compare-slots-section{padding:0 16px;}
 .compare-slots-label{font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-dim); margin-bottom:8px;}
-.compare-slot{display:flex; gap:8px; align-items:center; margin-bottom:8px;}
-.compare-slot input{flex:1; background:var(--night-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:13px; font-family:'IBM Plex Mono',monospace; color:var(--ink); outline:none;}
+.compare-slot{display:flex; gap:6px; align-items:center; margin-bottom:8px;}
+.compare-slot input{background:var(--night-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:13px; color:var(--ink); outline:none;}
 .compare-slot input:focus{border-color:var(--lumina);}
+.compare-slot-name{flex:0 0 80px; font-family:'Space Grotesk',sans-serif !important;}
+.compare-slot-code{flex:1; font-family:'IBM Plex Mono',monospace !important;}
 .compare-slot-remove{width:30px; height:30px; border-radius:50%; border:1px solid var(--line); background:none; color:var(--ink-dim); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
 .compare-add-btn{display:block; width:calc(100% - 32px); margin:4px 16px 12px; background:none; border:1px dashed var(--line); border-radius:10px; padding:10px; font-size:13px; color:var(--ink-dim); cursor:pointer; font-family:'IBM Plex Mono',monospace; letter-spacing:0.04em;}
 .compare-add-btn:active{border-color:var(--lumina); color:var(--lumina);}
@@ -612,6 +614,7 @@ mark.search-hl{
 .compare-act-row{display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-radius:10px; background:var(--night-2); border:1px solid var(--line); margin-bottom:5px;}
 .compare-act-name{font-size:14px; font-weight:600; color:var(--ink); font-family:'Space Grotesk',sans-serif;}
 .compare-act-meta{font-size:11px; color:var(--ink-dim); font-family:'IBM Plex Mono',monospace; margin-top:1px;}
+.compare-act-who{font-size:11px; color:var(--lumina); font-family:'IBM Plex Mono',monospace; margin-top:3px; opacity:0.8;}
 .compare-no-overlap{font-size:14px; color:var(--ink-dim); text-align:center; padding:20px 0;}
 .compare-confirm-btn{display:block; width:calc(100% - 32px); margin:0 16px 4px;}
 </style>
@@ -1979,18 +1982,23 @@ function shareCompareCode(){
   } else fallbackCopy(code,done);
 }
 
-function addCompareSlot(value=''){
+function addCompareSlot(value='', name=''){
   const slots=document.getElementById('compareSlots');
   const div=document.createElement('div');
   div.className='compare-slot';
+  const nameInp=document.createElement('input');
+  nameInp.type='text'; nameInp.placeholder='Name';
+  nameInp.className='compare-slot-name';
+  nameInp.autocomplete='off'; nameInp.value=name;
   const inp=document.createElement('input');
   inp.type='text'; inp.placeholder='Paste a friend\'s code…';
+  inp.className='compare-slot-code';
   inp.autocomplete='off'; inp.autocapitalize='none'; inp.autocorrect='off';
   inp.value=value;
   const rm=document.createElement('button');
   rm.className='compare-slot-remove'; rm.textContent='×';
   rm.onclick=()=>div.remove();
-  div.append(inp,rm);
+  div.append(nameInp,inp,rm);
   slots.appendChild(div);
   inp.focus();
 }
@@ -2018,17 +2026,23 @@ function openCompareSheet(){
 document.getElementById('compareShareCodeBtn').onclick=shareCompareCode;
 
 function runCompare(){
-  const inputs=Array.from(document.querySelectorAll('#compareSlots .compare-slot input'));
-  const codes=inputs.map(i=>i.value.trim()).filter(Boolean);
-  if(!codes.length){ document.getElementById('compareResults').innerHTML='<div class="compare-no-overlap">Paste at least one friend\'s code.</div>'; return; }
-  const total=codes.length+1; // +1 for you
-  const sets=[favorites, ...codes.map(decodeFavCode)];
-  // count how many sets each act appears in
+  const slots=Array.from(document.querySelectorAll('#compareSlots .compare-slot'));
+  const entries=slots.map((div,i)=>{
+    const nameInp=div.querySelector('.compare-slot-name');
+    const codeInp=div.querySelector('.compare-slot-code');
+    const code=(codeInp?codeInp.value:div.querySelector('input').value).trim();
+    const name=(nameInp&&nameInp.value.trim())||`Friend ${i+1}`;
+    return {code,name};
+  }).filter(e=>e.code);
+  if(!entries.length){ document.getElementById('compareResults').innerHTML='<div class="compare-no-overlap">Paste at least one friend\'s code.</div>'; return; }
+  const labels=['You',...entries.map(e=>e.name)];
+  const sets=[favorites,...entries.map(e=>decodeFavCode(e.code))];
+  const total=sets.length;
   const counts=[];
   FLAT_ACTS.forEach(({stage,e})=>{
     const k=favKey(stage,e);
-    const n=sets.filter(s=>s.has(k)).length;
-    if(n>=2) counts.push({stage,e,n});
+    const who=sets.map((s,i)=>s.has(k)?labels[i]:null).filter(Boolean);
+    if(who.length>=2) counts.push({stage,e,n:who.length,who});
   });
   counts.sort((a,b)=>b.n-a.n||a.e.start.localeCompare(b.e.start));
   const res=document.getElementById('compareResults');
@@ -2036,7 +2050,6 @@ function runCompare(){
     res.innerHTML='<div class="compare-no-overlap">No acts in common yet — add more friends or check your codes.</div>';
     return;
   }
-  // group by count
   const groups={};
   counts.forEach(item=>{ (groups[item.n]=groups[item.n]||[]).push(item); });
   let html='<div class="compare-results-header">Acts in common</div>';
@@ -2044,11 +2057,12 @@ function runCompare(){
     const isAll=parseInt(n)===total;
     html+=`<div class="compare-group">`;
     html+=`<div class="compare-score ${isAll?'compare-score-all':'compare-score-some'}">${n}/${total} people</div>`;
-    groups[n].forEach(({stage,e})=>{
+    groups[n].forEach(({stage,e,who})=>{
       html+=`<div class="compare-act-row">
         <div>
           <div class="compare-act-name">${e.act}</div>
           <div class="compare-act-meta">${stage} · ${fmt(e.start)}–${fmt(e.end)}</div>
+          <div class="compare-act-who">${who.join(', ')}</div>
         </div>
       </div>`;
     });
@@ -2093,8 +2107,9 @@ async function startScanner(){
       inputs.forEach(inp=>{ if(!target && !inp.value.trim()) target=inp; });
       if(!target){ addCompareSlot(); target=document.querySelector('#compareSlots .compare-slot:last-child input'); }
       target.value=raw;
-      msg.textContent='Code scanned — tap Compare!';
-      setTimeout(()=>{ msg.textContent=''; },4000);
+      msg.textContent='Code scanned!';
+      setTimeout(()=>{ msg.textContent=''; },3000);
+      runCompare();
     }
     function tick(){
       _scanRaf=requestAnimationFrame(tick);
