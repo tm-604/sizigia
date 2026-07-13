@@ -2662,8 +2662,15 @@ function wmoIcon(code){return(WMO[code]||['🌡️','Unknown']);}
 
 async function fetchWeather(){
   try{
-    const c=sessionStorage.getItem('sizigia_weather');
-    if(c){const{ts,data}=JSON.parse(c); if(Date.now()-ts<30*60*1000) return data;}
+    const c=sessionStorage.getItem('sizigia_weather_v2');
+    if(c){
+      const{ts,data}=JSON.parse(c);
+      // Guard against a stale cache surviving across a day boundary (e.g. a
+      // PWA left open for hours): only trust it if it's both under 30
+      // minutes old AND still dated today.
+      const cachedToday = data?.current_weather?.time?.slice(0,10) === new Date().toISOString().slice(0,10);
+      if(Date.now()-ts<30*60*1000 && cachedToday) return data;
+    }
   }catch(e){}
   const url=`https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}`+
     `&hourly=temperature_2m,weathercode,precipitation_probability,windspeed_10m`+
@@ -2672,7 +2679,7 @@ async function fetchWeather(){
   const resp=await fetch(url);
   if(!resp.ok) throw new Error('fail');
   const data=await resp.json();
-  try{sessionStorage.setItem('sizigia_weather',JSON.stringify({ts:Date.now(),data}));}catch(e){}
+  try{sessionStorage.setItem('sizigia_weather_v2',JSON.stringify({ts:Date.now(),data}));}catch(e){}
   return data;
 }
 
@@ -2717,7 +2724,7 @@ function renderWeatherOverlay(data){
     const d=new Date(date+'T12:00:00');
     const isFest=FESTIVAL_DATES.includes(date);
     if(isFest && (data.daily.precipitation_probability_max[i]||0)>=40) festivalRainyDays++;
-    const label=`${WDAY[d.getDay()]} ${d.getDate()} Aug`;
+    const label=`${WDAY[d.getDay()]} ${d.getDate()} ${MO_LONG[d.getMonth()].slice(0,3)}`;
     const[dIcon]=wmoIcon(data.daily.weathercode[i]);
     const max=Math.round(data.daily.temperature_2m_max[i]);
     const min=Math.round(data.daily.temperature_2m_min[i]);
