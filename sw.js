@@ -1,6 +1,6 @@
 // Bump this whenever index.html (or the lineup data inside it) changes,
 // so returning visitors pick up the new version instead of a stale cache.
-const CACHE_NAME = 'sizigia-cache-v72';
+const CACHE_NAME = 'sizigia-cache-v73';
 const ASSETS = [
   './',
   './index.html',
