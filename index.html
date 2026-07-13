@@ -553,11 +553,16 @@ mark.search-hl{
 .fav-day-label{font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.09em; color:var(--ink); text-transform:uppercase; margin:18px 0 8px 0;}
 .fav-day-label:first-child{margin-top:0;}
 
-/* sticky stage-color legend, pinned to the top of the favorites sheet while
-   its list scrolls underneath — mirrors the stage buttons on the main page */
+/* sticky header (title + close) and stage-color legend, both pinned to the
+   top of the favorites sheet while its list scrolls underneath — without
+   this the close button scrolls away and the sheet becomes unclosable
+   without scrolling back to the top first */
+.fav-sticky-top{
+  position:sticky; top:0; z-index:9;
+  background:var(--night);
+}
 .fav-stage-legend{
   display:grid; grid-template-columns:repeat(3,1fr); gap:5px;
-  position:sticky; top:0; z-index:8;
   background:var(--night); padding:6px 0 10px 0;
 }
 .fav-stage-legend .leg{
@@ -753,9 +758,11 @@ mark.search-hl{
 <div class="overlay" id="favOverlay">
   <div class="sheet" id="favSheet">
     <div class="sheet-grab-zone"><div class="sheet-grab"></div></div>
-    <button class="close" data-close>×</button>
-    <h2 class="artist-name" style="font-size:20px; margin-bottom:10px;">Your favorites</h2>
-    <div class="fav-stage-legend" id="favStageLegend"></div>
+    <div class="fav-sticky-top">
+      <button class="close" data-close>×</button>
+      <h2 class="artist-name" style="font-size:20px; margin-bottom:10px;">Your favorites</h2>
+      <div class="fav-stage-legend" id="favStageLegend"></div>
+    </div>
     <div id="favBody"></div>
     <div class="fav-backup">
       <button class="fav-backup-btn" id="saveFavBtn">Save favorites</button>
